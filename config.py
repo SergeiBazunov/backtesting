@@ -24,9 +24,21 @@ TP_AFTER_SCALE = 0.001      # +0.10 % от новой средней цены
 MAX_ENTRIES_PER_DAY = 1
 START_CASH = 10_000
 
+# Логировать каждый бар (цена открытия + MFI)
+LOG_EACH_BAR = True
+
+# откуда начинать загрузку исторических данных при первом запуске
+DATA_START_DATE = '2018-01-01'  # ISO-формат YYYY-MM-DD
+
+# Диапазон для самого бэктеста (если None – используем весь доступный)
+BACKTEST_START_DATE = '2018-01-01'  # например '2024-05-01'
+BACKTEST_END_DATE = '2025-12-31'   # например '2024-07-01'
+
 # Пути к данным
 DATA_DIR = Path(__file__).parent / 'data'
 DATA_FILE = DATA_DIR / f'{SYMBOL}-{TIMEFRAME_MINUTES}m.csv'
 
 # Для разделения истории (оптимизация / проверка)
 TRAIN_END_DATE = '2023-01-01' 
+
+EXPIRATION_DAYS_MAIN_ORDER = 1 

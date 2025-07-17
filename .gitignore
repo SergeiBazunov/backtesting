@@ -1,0 +1,37 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Dependency files
+poetry.lock
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# IDE / editor config
+.idea/
+.vscode/
+
+# Test / coverage caches
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+
+# Data files
+/data/*.csv
+
+# Local config
+.env 
