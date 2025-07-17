@@ -110,6 +110,7 @@ def main():
     cerebro = bt.Cerebro()
     cerebro.broker.set_coc(True)  # cheat-on-close – исполнение close() на текущем баре
     cerebro.broker.setcash(config.START_CASH)
+    cerebro.broker.setcommission(commission=config.COMMISSION)
     cerebro.addstrategy(AdaMfiStrategy)
     cerebro.adddata(get_datafeed())
 
@@ -136,6 +137,7 @@ def main():
     print(f"SL                   : {config.SL*100:.2f}%")
     print(f"TP after scale       : {config.TP_AFTER_SCALE*100:.2f}%")
     print(f"Max entries per day  : {config.MAX_ENTRIES_PER_DAY}")
+    print(f"Комиссия брокера     : {config.COMMISSION*100:.2f}%")
     print(f"Период теста         : {config.BACKTEST_START_DATE} → {config.BACKTEST_END_DATE}")
     
     # print('Начальная стоимость портфеля: %.2f' % cerebro.broker.getvalue())
