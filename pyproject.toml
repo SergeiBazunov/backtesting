@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "ada-mfi-backtest"
+version = "0.1.0"
+description = "ADA MFI strategy backtest using Backtrader"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "strategies"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+backtrader = "^1.9.78.123"
+pandas = "^2.2.0"
+matplotlib = "^3.8.0"
+binance_historical_data = "^0.1"
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api" 
