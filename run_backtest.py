@@ -117,14 +117,53 @@ def main():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd')
 
-    print('Начальная стоимость портфеля: %.2f' % cerebro.broker.getvalue())
+    
+
+    
+
     results = cerebro.run()
+
+    # --- вывод начальных параметров ---
+    print('\n===== Параметры теста =====')
+    print(f"Депозит              : {config.START_CASH}")
+    if config.POSITION_VALUE_USD:
+        print(f"Размер позиции       : {config.POSITION_VALUE_USD}$ (конвертируется в монеты при входе)")
+    else:
+        print(f"Размер позиции       : {config.POSITION_SIZE}")
+    print(f"MFI period           : {config.MFI_PERIOD}")
+    print(f"MFI entry level      : {config.MFI_ENTRY_LEVEL}")
+    print(f"TP initial           : {config.TP_INITIAL*100:.2f}%")
+    print(f"SL                   : {config.SL*100:.2f}%")
+    print(f"TP after scale       : {config.TP_AFTER_SCALE*100:.2f}%")
+    print(f"Max entries per day  : {config.MAX_ENTRIES_PER_DAY}")
+    print(f"Период теста         : {config.BACKTEST_START_DATE} → {config.BACKTEST_END_DATE}")
+    
+    # print('Начальная стоимость портфеля: %.2f' % cerebro.broker.getvalue())
     print('Конечная стоимость портфеля: %.2f' % cerebro.broker.getvalue())
 
     # Быстрая статистика
     trades = results[0].analyzers.trades.get_analysis()
     closed = trades.get('total', {}).get('closed', 0)
-    print('Всего закрытых сделок:', closed)
+    won_total = trades.get('won', {}).get('total', 0)
+    win_pnl = trades.get('won', {}).get('pnl', {}).get('total', 0.0)
+    lost_total = trades.get('lost', {}).get('total', 0)
+    loss_pnl = trades.get('lost', {}).get('pnl', {}).get('total', 0.0)
+
+    net_pnl = win_pnl + loss_pnl  # loss_pnl уже отрицательный
+    profitability = (won_total / closed * 100) if closed else 0.0
+    profit_factor = (abs(win_pnl) / abs(loss_pnl)) if loss_pnl != 0 else float('inf')
+
+    dd_info = results[0].analyzers.dd.get_analysis()
+    max_dd_pct = dd_info.get('max', {}).get('drawdown', 0.0)
+
+    print("\n===== Итоговая статистика =====")
+    print(f"Всего закрытых сделок : {closed}")
+    print(f"Плюсовых сделок       : {won_total} | Суммарная прибыль : {win_pnl:.2f}")
+    print(f"Минусовых сделок      : {lost_total} | Суммарный убыток  : {loss_pnl:.2f}")
+    print(f"Net PnL               : {net_pnl:.2f}")
+    print(f"Процент прибыльных    : {profitability:.1f}%")
+    print(f"Profit Factor         : {profit_factor:.2f}")
+    print(f"Макс. просадка        : {max_dd_pct:.2f}%")
 
     import matplotlib.pyplot as plt
     try:

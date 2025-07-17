@@ -63,7 +63,9 @@ class AdaMfiStrategy(bt.Strategy):
         scale_in_offset=config.SCALE_IN_OFFSET,
         tp_after_scale=config.TP_AFTER_SCALE,
         # Позиция
-        position_size=config.POSITION_SIZE,
+        position_size=config.POSITION_SIZE,          # фиксированные лоты
+        position_value_usd=config.POSITION_VALUE_USD,  # либо сумма в долларах
+        round_digits=config.POSITION_ROUND_DIGITS,
         # Ограничения
         max_entries_per_day=config.MAX_ENTRIES_PER_DAY,
         # Логировка
@@ -84,6 +86,10 @@ class AdaMfiStrategy(bt.Strategy):
         self.order_tp = None
         self.order_sl = None
         self.order_scale = None
+
+        # размеры частей позиции
+        self.first_size = None
+        self.scale_size = None
 
         self.first_avg_price = None  # цена первого входа
         self.last_trade_day = None  # чтобы не больше 1 входа в день
@@ -133,8 +139,9 @@ class AdaMfiStrategy(bt.Strategy):
 
         # Условие входа: MFI <= 10
         if self.mfi[0] <= self.p.mfi_entry_level:
-            self.log('ENTRY market')
-            self.order_main = self.buy(size=self.p.position_size)  # рыночный ордер
+            # self.log('ENTRY market')
+            size_main = self._calc_size(self.data.close[0])
+            self.order_main = self.buy(size=size_main)  # рыночный ордер
 
     # ------------------------------------------------------------
     def notify_order(self, order):
@@ -151,7 +158,8 @@ class AdaMfiStrategy(bt.Strategy):
             # 1) Основной вход
             if order == self.order_main:
                 self.first_avg_price = order.executed.price
-                self.log(f'ENTRY filled @ {self.first_avg_price:.4f}')
+                self.first_size = order.executed.size
+                # self.log(f'ENTRY filled @ {self.first_avg_price:.4f}')
 
                 # Ставим TP и SL
                 tp_price = self.first_avg_price * (1 + self.p.tp_initial)
@@ -160,12 +168,12 @@ class AdaMfiStrategy(bt.Strategy):
                 self.order_tp = self.sell(
                     exectype=bt.Order.Limit,
                     price=tp_price,
-                    size=self.p.position_size,
+                    size=self.first_size,
                 )
                 self.order_sl = self.sell(
                     exectype=bt.Order.Stop,
                     price=sl_price,
-                    size=self.p.position_size,
+                    size=self.first_size,
                 )
 
                 # уровни для отрисовки
@@ -175,10 +183,11 @@ class AdaMfiStrategy(bt.Strategy):
 
                 # Лимитка на добор
                 scale_price = self.first_avg_price * (1 - self.p.scale_in_offset)
+                scale_size = self._calc_size(scale_price)
                 self.order_scale = self.buy(
                     exectype=bt.Order.Limit,
                     price=scale_price,
-                    size=self.p.position_size,
+                    size=scale_size,
                 )
 
                 # отметим, что сегодня уже заходили
@@ -189,7 +198,7 @@ class AdaMfiStrategy(bt.Strategy):
                 # Если к моменту исполнения лимитки позиция уже закрыта (например, TP сработал тем же баром),
                 # игнорируем этот ордер, чтобы не открывать новую сделку поверх закрытой.
                 if self.last_exit_bar is not None and len(self) == self.last_exit_bar:
-                    self.log('SCALE-IN ignored – executed on same bar as exit')
+                    # self.log('SCALE-IN ignored – executed on same bar as exit')
                     # позиция снова открылась, закрываем её немедленно
                     if self.position:
                         self.close()
@@ -197,7 +206,8 @@ class AdaMfiStrategy(bt.Strategy):
                     return
 
                 scale_fill = order.executed.price
-                self.log(f'SCALE-IN filled @ {scale_fill:.4f}')
+                self.scale_size = order.executed.size
+                # self.log(f'SCALE-IN filled @ {scale_fill:.4f}')
 
                 # Отменяем старые TP/SL
                 if self.order_tp:
@@ -210,7 +220,7 @@ class AdaMfiStrategy(bt.Strategy):
                 tp_price = new_avg * (1 + self.p.tp_after_scale)
                 sl_price = self.first_avg_price * (1 - self.p.sl)  # стоп не двигается
 
-                total_size = self.p.position_size * 2
+                total_size = self.first_size + self.scale_size
                 self.order_tp = self.sell(
                     exectype=bt.Order.Limit,
                     price=tp_price,
@@ -229,7 +239,7 @@ class AdaMfiStrategy(bt.Strategy):
 
             # 3) Тейк-профит
             elif order == self.order_tp:
-                self.log(f'TAKE-PROFIT hit  PnL={order.executed.pnl:.2f}')
+                #self.log(f'TAKE-PROFIT hit  PnL={order.executed.pnl:.2f}')
 
                 if self.order_sl:
                     self.cancel(self.order_sl)
@@ -242,7 +252,7 @@ class AdaMfiStrategy(bt.Strategy):
 
             # 4) Стоп-лосс
             elif order == self.order_sl:
-                self.log(f'STOP-LOSS hit  PnL={order.executed.pnl:.2f}')
+                #self.log(f'STOP-LOSS hit  PnL={order.executed.pnl:.2f}')
 
                 if self.order_tp:
                     self.cancel(self.order_tp)
@@ -253,6 +263,14 @@ class AdaMfiStrategy(bt.Strategy):
                 # позиция должна быть уже закрыта стоп-лоссом;
                 # если всё же что-то осталось открытым, обработаем это позже в notify_trade
                 # окончательная очистка будет в notify_trade
+
+    # ------------------------------------------------------------
+    def _calc_size(self, price: float):
+        """Расчёт размера позиции (кол-во монет) исходя из цены и настроек."""
+        if self.p.position_value_usd:
+            units = self.p.position_value_usd / price
+            return round(units, self.p.round_digits)
+        return self.p.position_size
 
     # ------------------------------------------------------------
     def _reset_state(self):
@@ -267,6 +285,8 @@ class AdaMfiStrategy(bt.Strategy):
         self.cur_tp = None
         self.cur_sl = None
         self.last_exit_bar = None
+        self.first_size = None
+        self.scale_size = None
 
     def _clear_order_ref(self, order):
         if order == self.order_main:
@@ -283,7 +303,7 @@ class AdaMfiStrategy(bt.Strategy):
     def notify_trade(self, trade):
         """Финальный колбэк после закрытия позиции."""
         if trade.isclosed:
-            self.log(f'TRADE closed  Gross {trade.pnl:.2f}')
+            #self.log(f'TRADE closed  Gross {trade.pnl:.2f}')
             self._reset_state()
 
     # ------------------------------------------------------------
