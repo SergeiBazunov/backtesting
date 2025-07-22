@@ -22,9 +22,28 @@ def ensure_data():
     try:
         client = BinanceClient()  # public endpoints
 
-        # --- скачиваем порциями по 1000 свечей, чтобы показывать прогресс ---
-        interval = client.KLINE_INTERVAL_30MINUTE
-        limit = 1000
+        # --- выбираем интервал Binance в зависимости от нужного таймфрейма ---
+        INTERVAL_MAP = {
+            1:  client.KLINE_INTERVAL_1MINUTE,
+            3:  client.KLINE_INTERVAL_3MINUTE,
+            5:  client.KLINE_INTERVAL_5MINUTE,
+            15: client.KLINE_INTERVAL_15MINUTE,
+            30: client.KLINE_INTERVAL_30MINUTE,
+            60: client.KLINE_INTERVAL_1HOUR,
+            120: client.KLINE_INTERVAL_2HOUR,
+            240: client.KLINE_INTERVAL_4HOUR,
+            360: client.KLINE_INTERVAL_6HOUR,
+            480: client.KLINE_INTERVAL_8HOUR,
+            720: client.KLINE_INTERVAL_12HOUR,
+            1440: client.KLINE_INTERVAL_1DAY,
+        }
+
+        interval = INTERVAL_MAP.get(config.TIMEFRAME_MINUTES)
+        if interval is None:
+            raise ValueError(f"Unsupported TIMEFRAME_MINUTES={config.TIMEFRAME_MINUTES}. "
+                             "Добавьте его в INTERVAL_MAP в run_backtest.py")
+
+        limit = 1000  # максимум, который отдаёт API за запрос
         ms_per_candle = config.TIMEFRAME_MINUTES * 60_000
 
         start_ts = int(pd.to_datetime(config.DATA_START_DATE).tz_localize('UTC').timestamp() * 1000)

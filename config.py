@@ -2,7 +2,7 @@ from pathlib import Path
 
 # Общие параметры
 SYMBOL = 'ADAUSDT'
-TIMEFRAME_MINUTES = 30
+TIMEFRAME_MINUTES = 60
 
 # Размер позиции (фиксированное количество монет)
 POSITION_SIZE = 100  # fallback, если POSITION_VALUE_USD = 0
@@ -41,8 +41,8 @@ LOG_EACH_BAR = True
 DATA_START_DATE = '2018-01-01'  # ISO-формат YYYY-MM-DD
 
 # Диапазон для самого бэктеста (если None – используем весь доступный)
-BACKTEST_START_DATE = '2023-01-01'  # например '2024-05-01'
-BACKTEST_END_DATE = '2025-12-31'   # например '2024-07-01'
+BACKTEST_START_DATE = '2024-06-17'  # например '2024-05-01'
+BACKTEST_END_DATE = '2024-06-19'   # например '2024-07-01'
 
 # Пути к данным
 DATA_DIR = Path(__file__).parent / 'data'
