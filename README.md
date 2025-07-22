@@ -22,7 +22,7 @@
 
 ```bash
 # 1. Клонируйте репозиторий
- git clone https://github.com/<YOUR_USERNAME>/backtesting.git
+ git clone https://github.com/SergeiBazunov/backtesting.git
  cd backtesting
 
 # 2. Установите Poetry (если ещё нет)
