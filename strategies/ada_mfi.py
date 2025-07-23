@@ -123,11 +123,11 @@ class AdaMfiStrategy(bt.Strategy):
         """Вызывается на каждой новой свече"""
 
         # --- подробный лог цен и MFI ---
-        if self.p.log_each_bar:
-            pos = self.position.size
-            pending = sum(1 for o in (self.order_main, self.order_scale)
-                            if o is not None and o.status in (o.Submitted, o.Accepted))
-            self.log(f'Pos {int(pos):>4}  Pend {pending}  Open {self.data.open[0]:.4f}  MFI {self.mfi[0]:.2f}')
+        # if self.p.log_each_bar:
+        #     pos = self.position.size
+        #     pending = sum(1 for o in (self.order_main, self.order_scale)
+        #                     if o is not None and o.status in (o.Submitted, o.Accepted))
+        #     self.log(f'Pos {int(pos):>4}  Pend {pending}  Open {self.data.open[0]:.4f}  MFI {self.mfi[0]:.2f}')
 
         # если уже в позиции – ничего не делаем
         if self.position or self.order_main:
@@ -162,8 +162,8 @@ class AdaMfiStrategy(bt.Strategy):
                 self.log(f'ENTRY filled @ {self.first_avg_price:.4f}')
 
                 # Ставим TP и SL
-                tp_price = self.first_avg_price * (1 + self.p.tp_initial)
-                sl_price = self.first_avg_price * (1 - self.p.sl)
+                tp_price = self._price_with_commission(self.first_avg_price, self.p.tp_initial)
+                sl_price = self._price_with_commission(self.first_avg_price, -self.p.sl)
 
                 self.order_tp = self.sell(
                     exectype=bt.Order.Limit,
@@ -217,8 +217,8 @@ class AdaMfiStrategy(bt.Strategy):
 
                 # Новый TP и SL для полного объёма
                 new_avg = (self.first_avg_price + scale_fill) / 2  # две одинаковые части
-                tp_price = new_avg * (1 + self.p.tp_after_scale)
-                sl_price = self.first_avg_price * (1 - self.p.sl)  # стоп не двигается
+                tp_price = self._price_with_commission(new_avg, self.p.tp_after_scale)
+                sl_price = self._price_with_commission(self.first_avg_price, -self.p.sl)  # стоп остаётся прежним по риск-менеджменту
 
                 total_size = self.first_size + self.scale_size
                 self.order_tp = self.sell(
@@ -271,6 +271,18 @@ class AdaMfiStrategy(bt.Strategy):
             units = self.p.position_value_usd / price
             return round(units, self.p.round_digits)
         return self.p.position_size
+
+    # ------------------------------------------------------------
+    def _price_with_commission(self, entry_price: float, target_pct: float) -> float:
+        """Возвращает цену TP/SL, при которой фактический PnL (после учёта комиссии) 
+        составит target_pct от цены входа.
+
+        target_pct > 0 – тейк-профит,
+        target_pct < 0 – стоп-лосс.
+        """
+        c = config.COMMISSION  # комиссия брокера (доля объёма)
+        # Формула: S = P * (1 + target_pct + c) / (1 - c)
+        return entry_price * (1 + target_pct + c) / (1 - c)
 
     # ------------------------------------------------------------
     def _reset_state(self):
